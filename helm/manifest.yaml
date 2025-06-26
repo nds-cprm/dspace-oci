@@ -1,0 +1,554 @@
+---
+# Source: dspace/templates/serviceaccount.yaml
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: teste-dspace
+  labels:
+    helm.sh/chart: dspace-0.5.0
+    app.kubernetes.io/name: dspace
+    app.kubernetes.io/instance: teste
+    app.kubernetes.io/version: "dspace-8.1"
+    app.kubernetes.io/managed-by: Helm
+---
+# Source: dspace/templates/backend/secret.yaml
+kind: Secret
+apiVersion: v1
+metadata:
+  name: teste-dspace-backend-credentials
+  labels:
+    helm.sh/chart: dspace-0.5.0
+    app.kubernetes.io/name: dspace
+    app.kubernetes.io/instance: teste
+    app.kubernetes.io/version: "dspace-8.1"
+    app.kubernetes.io/managed-by: Helm
+stringData:
+  db__P__url: jdbc:postgresql://teste-dspace-db.sgb-sace-prod.svc.cluster.local:5432/dspace
+  db__P__username: dspace
+  db__P__password: dspace
+  solr__P__server: http://teste-dspace-solr.sgb-sace-prod.svc.cluster.local:8983/solr
+type: Opaque
+---
+# Source: dspace/templates/backend/configmap.yaml
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: teste-dspace-backend-configs
+  labels:
+    helm.sh/chart: dspace-0.5.0
+    app.kubernetes.io/name: dspace
+    app.kubernetes.io/instance: teste
+    app.kubernetes.io/version: "dspace-8.1"
+    app.kubernetes.io/managed-by: Helm
+data:
+  dspace__P__dir: /dspace
+  dspace__P__server__P__url: http:///server
+  dspace__P__ui__P__url: http:///
+  dspace__P__name: DSpace Started with Helm
+  CATALINA_OPTS: -Djava.net.preferIPv4Stack=true -Djava.net.preferIPv4Addresses=true
+---
+# Source: dspace/templates/frontend/environment-configmap.yaml
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: teste-dspace-frontend-ui-env
+  labels:
+    helm.sh/chart: dspace-0.5.0
+    app.kubernetes.io/name: dspace
+    app.kubernetes.io/instance: teste
+    app.kubernetes.io/version: "dspace-8.1"
+    app.kubernetes.io/managed-by: Helm
+data:
+  DSPACE_UI_SSL: "false"
+  DSPACE_UI_HOST: "0.0.0.0"
+  DSPACE_UI_PORT: "4000"
+  DSPACE_UI_NAMESPACE: "/"
+  DSPACE_REST_SSL: "false"
+  DSPACE_REST_HOST: ""
+  DSPACE_REST_PORT: "80"
+  DSPACE_REST_NAMESPACE: "/server"
+---
+# Source: dspace/templates/backend/pvc.yaml
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: teste-dspace-backend-assetstore
+  labels:
+    helm.sh/chart: dspace-0.5.0
+    app.kubernetes.io/name: dspace
+    app.kubernetes.io/instance: teste
+    app.kubernetes.io/version: "dspace-8.1"
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/component: backend
+  annotations:
+    helm.sh/resource-policy: keep
+  
+spec:
+  accessModes:
+    - ReadWriteOnce
+  volumeMode: Filesystem
+  storageClassName: ""
+  resources:
+    requests:
+      storage: 1Gi
+---
+# Source: dspace/templates/backend/pvc.yaml
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: teste-dspace-backend-config
+  labels:
+    helm.sh/chart: dspace-0.5.0
+    app.kubernetes.io/name: dspace
+    app.kubernetes.io/instance: teste
+    app.kubernetes.io/version: "dspace-8.1"
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/component: backend
+  annotations:
+    helm.sh/resource-policy: keep
+spec:
+  accessModes:
+    - ReadWriteOnce
+  volumeMode: Filesystem
+  storageClassName: ""
+  resources:
+    requests:
+      storage: 1Gi
+---
+# Source: dspace/templates/backend/service.yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: teste-dspace-backend
+  labels:
+    helm.sh/chart: dspace-0.5.0
+    app.kubernetes.io/name: dspace
+    app.kubernetes.io/instance: teste
+    app.kubernetes.io/version: "dspace-8.1"
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/component: backend
+spec:
+  type: ClusterIP
+  ports:
+    - port: 8080
+      targetPort: backend-port
+      protocol: TCP
+      name: backend-port-svc
+  selector:
+    app.kubernetes.io/name: dspace
+    app.kubernetes.io/instance: teste
+    app.kubernetes.io/component: backend
+---
+# Source: dspace/templates/db/service.yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: teste-dspace-db
+  labels:
+    helm.sh/chart: dspace-0.5.0
+    app.kubernetes.io/name: dspace
+    app.kubernetes.io/instance: teste
+    app.kubernetes.io/version: "dspace-8.1"
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/component: database
+spec:
+  type: ClusterIP
+  ports:
+    - port: 5432
+      targetPort: db-port
+      protocol: TCP
+      name: db-port-svc
+  selector:
+    app.kubernetes.io/name: dspace
+    app.kubernetes.io/instance: teste
+    app.kubernetes.io/component: database
+---
+# Source: dspace/templates/frontend/service.yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: teste-dspace-frontend
+  labels:
+    helm.sh/chart: dspace-0.5.0
+    app.kubernetes.io/name: dspace
+    app.kubernetes.io/instance: teste
+    app.kubernetes.io/version: "dspace-8.1"
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/component: frontend
+spec:
+  type: ClusterIP
+  ports:
+    - port: 4000
+      targetPort: frontend-port
+      protocol: TCP
+      name: frontend-port-svc
+  selector:
+    app.kubernetes.io/name: dspace
+    app.kubernetes.io/instance: teste
+    app.kubernetes.io/component: frontend
+---
+# Source: dspace/templates/solr/service.yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: teste-dspace-solr
+  labels:
+    helm.sh/chart: dspace-0.5.0
+    app.kubernetes.io/name: dspace
+    app.kubernetes.io/instance: teste
+    app.kubernetes.io/version: "dspace-8.1"
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/component: search-engine
+spec:
+  type: ClusterIP
+  ports:
+    - port: 8983
+      targetPort: solr-port
+      protocol: TCP
+      name: solr-port-svc
+  selector:
+    app.kubernetes.io/name: dspace
+    app.kubernetes.io/instance: teste
+    app.kubernetes.io/component: search-engine
+---
+# Source: dspace/templates/backend/deployment.yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: teste-dspace-backend
+  labels:
+    helm.sh/chart: dspace-0.5.0
+    app.kubernetes.io/name: dspace
+    app.kubernetes.io/instance: teste
+    app.kubernetes.io/version: "dspace-8.1"
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/component: backend
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: dspace
+      app.kubernetes.io/instance: teste
+      app.kubernetes.io/component: backend
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: dspace
+        app.kubernetes.io/instance: teste
+        app.kubernetes.io/component: backend
+    spec:
+      serviceAccountName: teste-dspace
+      securityContext:
+        {}
+      volumes:
+        - name: dspace-assetstore
+          persistentVolumeClaim:
+            claimName: teste-dspace-backend-assetstore
+        - name: dspace-config
+          persistentVolumeClaim:
+            claimName: teste-dspace-backend-config
+      hostAliases:
+        - hostnames:
+          - localhost.localdomain
+          - localhost
+          ip: 127.0.0.1
+      containers:
+        - name: dspace-backend
+          securityContext:
+            {}
+          image: "docker.io/dspace/dspace:dspace-8.1"
+          imagePullPolicy: IfNotPresent
+          ports:
+            - name: backend-port
+              containerPort: 8080
+              protocol: TCP
+          envFrom:
+            - configMapRef:
+                name: teste-dspace-backend-configs
+            - secretRef:
+                name: teste-dspace-backend-credentials
+          command:
+            - /bin/bash
+          args:
+            - '-c'
+            - java -jar /dspace/webapps/server-boot.jar --dspace.dir=/dspace
+          volumeMounts:
+            - mountPath: /dspace/assetstore
+              name: dspace-assetstore
+            - mountPath: /dspace/config
+              name: dspace-config
+          livenessProbe:
+            # https://wiki.lyrasis.org/pages/viewpage.action?pageId=289079751
+            httpGet:
+              path: /server/api/core/sites
+              port: backend-port
+            initialDelaySeconds: 30
+            periodSeconds: 60
+            timeoutSeconds: 10
+            failureThreshold: 2
+          resources:
+            {}
+      initContainers:
+        # Copy default config dir to a volume, if enabled
+        - name: copy-dspace-config
+          image: "docker.io/dspace/dspace:dspace-8.1"
+          securityContext:
+            {}
+          command: 
+            - '/bin/sh'
+          args: 
+            - '-c' 
+            - |
+              cp -rpuv /dspace/config/* /mnt/config
+          volumeMounts:
+            - mountPath: /mnt/config
+              name: dspace-config
+        # Check if database is ready
+        - name: check-if-db-is-ready
+          image: "docker.io/dspace/dspace:dspace-8.1"
+          securityContext:
+            {}
+          command: ['/bin/sh']
+          args: 
+            - '-c'
+            - /dspace/bin/dspace database test          
+          envFrom:
+            - configMapRef:
+                name: teste-dspace-backend-configs
+            - secretRef:
+                name: teste-dspace-backend-credentials
+          volumeMounts:
+            - mountPath: /dspace/assetstore
+              name: dspace-assetstore
+            - mountPath: /dspace/config
+              name: dspace-config
+        # After, make migrations
+        - name: make-migrations
+          image: "docker.io/dspace/dspace:dspace-8.1"
+          securityContext:
+            {}
+          command: ['/bin/sh']
+          args: 
+            - '-c'
+            - /dspace/bin/dspace database migrate ignored         
+          envFrom:
+            - configMapRef:
+                name: teste-dspace-backend-configs
+            - secretRef:
+                name: teste-dspace-backend-credentials
+          volumeMounts:
+            - mountPath: /dspace/assetstore
+              name: dspace-assetstore
+            - mountPath: /dspace/config
+              name: dspace-config
+---
+# Source: dspace/templates/frontend/deployment.yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: teste-dspace-frontend
+  labels:
+    helm.sh/chart: dspace-0.5.0
+    app.kubernetes.io/name: dspace
+    app.kubernetes.io/instance: teste
+    app.kubernetes.io/version: "dspace-8.1"
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/component: frontend
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: dspace
+      app.kubernetes.io/instance: teste
+      app.kubernetes.io/component: frontend
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: dspace
+        app.kubernetes.io/instance: teste
+        app.kubernetes.io/component: frontend
+    spec:
+      serviceAccountName: teste-dspace
+      securityContext:
+        {}
+      containers:
+        - name: dspace-frontend
+          securityContext:
+            {}
+          image: "docker.io/dspace/dspace-angular:dspace-8.1-dist"
+          imagePullPolicy: IfNotPresent
+          ports:
+            - name: frontend-port
+              containerPort: 4000
+              protocol: TCP
+          envFrom:
+            - configMapRef:
+                name: teste-dspace-frontend-ui-env
+          livenessProbe:
+            httpGet:
+              path: /home
+              port: frontend-port
+            initialDelaySeconds: 30
+            periodSeconds: 60
+            timeoutSeconds: 10
+            failureThreshold: 2                      
+          resources:
+            {}
+      initContainers:
+        # TODO: formatar o comando wget para usar values
+        - name: ping-backend
+          image: busybox:1.28
+          command: ['/bin/sh']
+          args: 
+            - '-c' 
+            - >
+              until wget --spider http://teste-dspace-backend:8080/server
+                do echo waiting for REST API; sleep 10; 
+              done
+---
+# Source: dspace/templates/db/statefulset.yaml
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: teste-dspace-db
+spec:
+  serviceName: teste-dspace-db
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: dspace
+      app.kubernetes.io/instance: teste
+      app.kubernetes.io/component: database
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: dspace
+        app.kubernetes.io/instance: teste
+        app.kubernetes.io/component: database
+    spec:
+      terminationGracePeriodSeconds: 10
+      serviceAccountName: teste-dspace
+      containers:
+        - name: dspace-db
+          image: "docker.io/dspace/dspace-postgres-pgcrypto:dspace-8.1"
+          imagePullPolicy: IfNotPresent
+          securityContext:
+            runAsUser: 0
+          ports:
+            - containerPort: 5432
+              name: db-port
+          volumeMounts:
+            - name: data
+              mountPath: /postgres
+          env:
+            - name: PGDATA
+              value: /data
+            - name: POSTGRES_DB
+              value: dspace
+            - name: POSTGRES_USER
+              value: dspace
+            - name: POSTGRES_PASSWORD
+              value: dspace
+  volumeClaimTemplates:
+    - metadata:
+        name: data
+      spec:
+        accessModes:
+          - ReadWriteOnce
+        resources:
+          requests:
+            storage: 5Gi
+---
+# Source: dspace/templates/solr/statefulset.yaml
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: teste-dspace-solr
+spec:
+  serviceName: teste-dspace-solr
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: dspace
+      app.kubernetes.io/instance: teste
+      app.kubernetes.io/component: search-engine
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: dspace
+        app.kubernetes.io/instance: teste
+        app.kubernetes.io/component: search-engine
+    spec:
+      serviceAccountName: teste-dspace
+      securityContext:
+        fsGroup: 8983
+      terminationGracePeriodSeconds: 10
+      containers:
+        - name: dspace-solr
+          image: "docker.io/dspace/dspace-solr:dspace-8.1"
+          imagePullPolicy: IfNotPresent
+          securityContext:
+            runAsUser: 8983
+          workingDir: /var/solr/data
+          ports:
+            - containerPort: 8983
+              name: solr-port
+          volumeMounts:
+            - name: data
+              mountPath: /var/solr/data
+          # TODO: Move commands before exec tomcat to initContainers
+          command: ["/bin/bash"]
+          args: 
+            - '-c'
+            - |
+              init-var-solr; 
+              precreate-core authority /opt/solr/server/solr/configsets/authority; 
+              cp -r /opt/solr/server/solr/configsets/authority/* authority; 
+              precreate-core oai /opt/solr/server/solr/configsets/oai; 
+              cp -r /opt/solr/server/solr/configsets/oai/* oai; 
+              precreate-core search /opt/solr/server/solr/configsets/search; 
+              cp -r /opt/solr/server/solr/configsets/search/* search; 
+              precreate-core statistics /opt/solr/server/solr/configsets/statistics; 
+              cp -r /opt/solr/server/solr/configsets/statistics/* statistics; 
+              exec solr -f
+  volumeClaimTemplates:
+    - metadata:
+        name: data
+      spec:
+        accessModes:
+          - ReadWriteOnce
+        resources:
+          requests:
+            storage: 1Gi
+---
+# Source: dspace/templates/ingress.yaml
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: teste-dspace
+  labels:
+    helm.sh/chart: dspace-0.5.0
+    app.kubernetes.io/name: dspace
+    app.kubernetes.io/instance: teste
+    app.kubernetes.io/version: "dspace-8.1"
+    app.kubernetes.io/managed-by: Helm
+spec:
+  tls:
+  rules:
+    - host: ""
+      http:
+        paths:
+          - path: /
+            pathType: ImplementationSpecific
+            backend:
+              service:
+                name: teste-dspace-frontend
+                port:
+                  number: 4000
+          - path: /server
+            pathType: ImplementationSpecific
+            backend:
+              service:
+                name: teste-dspace-backend
+                port:
+                  number: 8080

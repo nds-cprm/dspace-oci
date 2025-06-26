@@ -1,0 +1,17 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ include "dspace.frontendFullname" . }}-ui-env
+  labels:
+    {{- include "dspace.labels" . | nindent 4 }}
+data: 
+  {{- with .Values.config }}
+  DSPACE_UI_SSL: "false"
+  DSPACE_UI_HOST: "0.0.0.0"
+  DSPACE_UI_PORT: "4000"
+  DSPACE_UI_NAMESPACE: {{ .ui.path | quote }}
+  DSPACE_REST_SSL: "false"
+  DSPACE_REST_HOST: {{ .server.host | quote }}
+  DSPACE_REST_PORT: {{ .server.port | quote}}
+  DSPACE_REST_NAMESPACE: {{ .server.path | quote }}
+  {{- end }}

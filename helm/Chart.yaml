@@ -1,0 +1,25 @@
+apiVersion: v2
+name: dspace
+version: 0.5.0
+description: |-
+  DSpace is an open source repository application that allows you to capture, store, 
+  index, preserve and distribute your digital material including text, video, audio 
+  and data.  DSpace provides a way to manage your materials and publications in a 
+  professionally maintained repository to give them greater visibility and 
+  accessibility over time.
+type: application
+keywords:
+  - Repository
+  - Catalog
+  - Documents
+home: https://dspace.lyrasis.org/
+sources:
+  - https://github.com/DSpace/DSpace
+  - https://github.com/DSpace/dspace-angular
+maintainers:
+  - name: Carlos Eduardo Mota
+    email: carlos.mota@sgb.gov.br
+  - name: Marcelo Zoel
+    email: marcelo.zoel@sgb.gov.br
+icon: "http://dspace.lyrasis.org/wp-content/uploads/2021/10/DSpace-logo-light.png"
+appVersion: "dspace-8.1"

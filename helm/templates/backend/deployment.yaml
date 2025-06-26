@@ -1,0 +1,164 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "dspace.backendFullname" . }}
+  labels:
+    {{- include "dspace.labels" . | nindent 4 }}
+    app.kubernetes.io/component: backend
+spec:
+  {{- if not .Values.services.backend.autoscaling.enabled }}
+  replicas: {{ .Values.services.backend.replicaCount }}
+  {{- end }}
+  selector:
+    matchLabels:
+      {{- include "dspace.selectorLabels" . | nindent 6 }}
+      app.kubernetes.io/component: backend
+  template:
+    metadata:
+      annotations:
+        rollme: {{ randAlphaNum 5 | quote }}
+        {{- with .Values.services.backend.podAnnotations }}
+        {{- toYaml . | nindent 8 }}
+        {{- end }}
+      labels:
+        {{- include "dspace.selectorLabels" . | nindent 8 }}
+        app.kubernetes.io/component: backend
+    spec:
+      {{- with .Values.services.backend.imagePullSecrets }}
+      imagePullSecrets:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      serviceAccountName: {{ include "dspace.serviceAccountName" . }}
+      securityContext:
+        {{- toYaml .Values.services.backend.podSecurityContext | nindent 8 }}
+      volumes:
+        {{- if .Values.services.backend.pvc.assetstore.enabled }}
+        - name: dspace-assetstore
+          persistentVolumeClaim:
+            claimName: {{ include "dspace.backendFullname" . }}-assetstore
+        {{- end }}
+        {{- if .Values.services.backend.pvc.config.enabled }}
+        - name: dspace-config
+          persistentVolumeClaim:
+            claimName: {{ include "dspace.backendFullname" . }}-config
+        {{- end }}
+      {{- with .Values.services.backend.extraHosts }}
+      hostAliases:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      containers:
+        - name: {{ .Chart.Name }}-backend
+          securityContext:
+            {{- toYaml .Values.services.backend.securityContext | nindent 12 }}
+          image: "{{ .Values.services.backend.image.repository }}:{{ .Values.services.backend.image.tag | default .Chart.AppVersion }}"
+          imagePullPolicy: {{ .Values.services.backend.image.pullPolicy }}
+          ports:
+            - name: backend-port
+              containerPort: 8080
+              protocol: TCP
+          envFrom:
+            - configMapRef:
+                name: {{ include "dspace.backendFullname" . }}-configs
+            - secretRef:
+                name: {{ include "dspace.backendFullname" . }}-credentials
+          command:
+            - /bin/bash
+          args:
+            {{- $dir :=.Values.config.dir }}
+            - '-c'
+            - {{ printf "java -jar %s/webapps/server-boot.jar --dspace.dir=%s" $dir $dir }}
+          volumeMounts:
+            {{- if .Values.services.backend.pvc.assetstore.enabled }}
+            - mountPath: {{ printf "%s/assetstore" .Values.config.dir }}
+              name: dspace-assetstore
+            {{- end }}
+            {{- if .Values.services.backend.pvc.config.enabled }}
+            - mountPath: {{ printf "%s/config" .Values.config.dir }}
+              name: dspace-config
+            {{- end }}
+          livenessProbe:
+            # https://wiki.lyrasis.org/pages/viewpage.action?pageId=289079751
+            httpGet:
+              path: /server/api/core/sites
+              port: backend-port
+            initialDelaySeconds: 30
+            periodSeconds: 60
+            timeoutSeconds: 10
+            failureThreshold: 2
+          resources:
+            {{- toYaml .Values.services.backend.resources | nindent 12 }}
+      initContainers:
+        # Copy default config dir to a volume, if enabled
+        {{- if .Values.services.backend.pvc.config.enabled }}
+        - name: copy-dspace-config
+          image: "{{ .Values.services.backend.image.repository }}:{{ .Values.services.backend.image.tag | default .Chart.AppVersion }}"
+          securityContext:
+            {{- toYaml .Values.services.backend.securityContext | nindent 12 }}
+          command: 
+            - '/bin/sh'
+          args: 
+            - '-c' 
+            - |
+              cp -rpuv {{ printf "%s/config" .Values.config.dir }}/* /mnt/config
+          volumeMounts:
+            - mountPath: /mnt/config
+              name: dspace-config
+          {{- end }}
+        # Check if database is ready
+        - name: check-if-db-is-ready
+          image: "{{ .Values.services.backend.image.repository }}:{{ .Values.services.backend.image.tag | default .Chart.AppVersion }}"
+          securityContext:
+            {{- toYaml .Values.services.backend.securityContext | nindent 12 }}
+          command: ['/bin/sh']
+          args: 
+            - '-c'
+            - /dspace/bin/dspace database test          
+          envFrom:
+            - configMapRef:
+                name: {{ include "dspace.backendFullname" . }}-configs
+            - secretRef:
+                name: {{ include "dspace.backendFullname" . }}-credentials
+          volumeMounts:
+            {{- if .Values.services.backend.pvc.assetstore.enabled }}
+            - mountPath: {{ printf "%s/assetstore" .Values.config.dir }}
+              name: dspace-assetstore
+            {{- end }}
+            {{- if .Values.services.backend.pvc.config.enabled }}
+            - mountPath: {{ printf "%s/config" .Values.config.dir }}
+              name: dspace-config
+            {{- end }}
+        # After, make migrations
+        - name: make-migrations
+          image: "{{ .Values.services.backend.image.repository }}:{{ .Values.services.backend.image.tag | default .Chart.AppVersion }}"
+          securityContext:
+            {{- toYaml .Values.services.backend.securityContext | nindent 12 }}
+          command: ['/bin/sh']
+          args: 
+            - '-c'
+            - /dspace/bin/dspace database migrate ignored         
+          envFrom:
+            - configMapRef:
+                name: {{ include "dspace.backendFullname" . }}-configs
+            - secretRef:
+                name: {{ include "dspace.backendFullname" . }}-credentials
+          volumeMounts:
+            {{- if .Values.services.backend.pvc.assetstore.enabled }}
+            - mountPath: {{ printf "%s/assetstore" .Values.config.dir }}
+              name: dspace-assetstore
+            {{- end }}
+            {{- if .Values.services.backend.pvc.config.enabled }}
+            - mountPath: {{ printf "%s/config" .Values.config.dir }}
+              name: dspace-config
+            {{- end }}
+      {{- with .Values.services.backend.nodeSelector }}
+      nodeSelector:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.services.backend.affinity }}
+      affinity:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.services.backend.tolerations }}
+      tolerations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}

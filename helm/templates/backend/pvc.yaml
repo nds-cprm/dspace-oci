@@ -1,0 +1,56 @@
+{{- if .Values.services.backend.pvc.assetstore.enabled -}}
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: {{ include "dspace.backendFullname" . }}-assetstore
+  labels:
+    {{- include "dspace.labels" . | nindent 4 }}
+    app.kubernetes.io/component: backend
+  {{- if .Values.services.backend.pvc.assetstore.keep }}
+  annotations:
+    helm.sh/resource-policy: keep
+  {{- end }}
+  
+spec:
+  {{- with .Values.services.backend.pvc.assetstore }}
+  accessModes:
+    - {{ .accessMode }}
+  volumeMode: Filesystem
+  storageClassName: {{ ( default "" .className ) | quote }}
+  {{- if .volumeName }}
+  volumeName: {{ .volumeName | quote }}
+  {{- end }}
+  resources:
+    requests:
+      storage: {{ .size }}
+  {{- end }}
+{{- end }}
+
+---
+
+{{- if .Values.services.backend.pvc.config.enabled -}}
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: {{ include "dspace.backendFullname" . }}-config
+  labels:
+    {{- include "dspace.labels" . | nindent 4 }}
+    app.kubernetes.io/component: backend
+  {{- if .Values.services.backend.pvc.config.keep }}
+  annotations:
+    helm.sh/resource-policy: keep
+  {{- end }}
+spec:
+  {{- with .Values.services.backend.pvc.config }}
+  accessModes:
+    - {{ .accessMode }}
+  volumeMode: Filesystem
+  storageClassName: {{ ( default "" .className ) | quote }}
+  {{- if .volumeName }}
+  volumeName: {{ .volumeName | quote }}
+  {{- end }}
+  resources:
+    requests:
+      storage: {{ .size }}
+  {{- end }}
+{{- end }}

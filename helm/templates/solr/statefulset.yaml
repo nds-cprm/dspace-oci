@@ -1,0 +1,70 @@
+{{- if not .Values.config.solr.external }}
+{{- $fullName := (include "dspace.solrFullname" .) }}
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: {{ $fullName }}
+spec:
+  serviceName: {{ $fullName }}
+  replicas: 1
+  selector:
+    matchLabels:
+      {{- include "dspace.selectorLabels" . | nindent 6 }}
+      app.kubernetes.io/component: search-engine
+  template:
+    metadata:
+      labels:
+        {{- include "dspace.selectorLabels" . | nindent 8 }}
+        app.kubernetes.io/component: search-engine
+    spec:
+      {{- with .Values.services.solr.imagePullSecrets }}
+      imagePullSecrets:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      serviceAccountName: {{ include "dspace.serviceAccountName" . }}
+      securityContext:
+        {{- toYaml .Values.services.solr.podSecurityContext | nindent 8 }}
+      terminationGracePeriodSeconds: 10
+      containers:
+        - name: dspace-solr
+          image: "{{ .Values.services.solr.image.repository }}:{{ .Values.services.solr.image.tag | default .Chart.AppVersion }}"
+          imagePullPolicy: {{ .Values.services.solr.image.pullPolicy }}
+          securityContext:
+            {{- toYaml .Values.services.solr.securityContext | nindent 12 }}
+          workingDir: /var/solr/data
+          ports:
+            - containerPort: 8983
+              name: solr-port
+          volumeMounts:
+            - name: data
+              mountPath: /var/solr/data
+          # TODO: Move commands before exec tomcat to initContainers
+          command: ["/bin/bash"]
+          args: 
+            - '-c'
+            - |
+              init-var-solr; 
+              precreate-core authority /opt/solr/server/solr/configsets/authority; 
+              cp -r /opt/solr/server/solr/configsets/authority/* authority; 
+              precreate-core oai /opt/solr/server/solr/configsets/oai; 
+              cp -r /opt/solr/server/solr/configsets/oai/* oai; 
+              precreate-core search /opt/solr/server/solr/configsets/search; 
+              cp -r /opt/solr/server/solr/configsets/search/* search; 
+              precreate-core statistics /opt/solr/server/solr/configsets/statistics; 
+              cp -r /opt/solr/server/solr/configsets/statistics/* statistics; 
+              exec solr -f
+  volumeClaimTemplates:
+    - metadata:
+        name: data
+      spec:
+        accessModes:
+          - ReadWriteOnce
+        {{- with .Values.services.solr.pvc }}
+        {{- if .className }}
+        storageClassName: {{ .className }}
+        {{- end }}
+        resources:
+          requests:
+            storage: {{ .size }}
+        {{- end }}
+{{- end }}
